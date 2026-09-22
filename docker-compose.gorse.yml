@@ -1,19 +1,20 @@
-# Déploiement local / self-hosted de Gorse (open-source, gratuit).
+# Déploiement local / self-hosté de Gorse (open-source, gratuit).
 #
 # Démarrage :  docker compose -f docker-compose.gorse.yml up -d
-# API :        http://localhost:8088
-# Dashboard :  http://localhost:8088 (interface web intégrée)
+# API :        http://localhost:8087
+# Dashboard :  http://localhost:8087 (interface web intégrée)
 #
 # Gorse a besoin d'un cache (Redis) et d'un stockage (Postgres).
 # Tu peux réutiliser ton instance Supabase Postgres en changeant GORSE_DATA_STORE.
 
-version: "3.9"
-
 services:
+  # gorse-in-one combine le serveur (master + API HTTP) et le worker
   gorse:
-    image: gorse/gorse-server:latest
-    container_name: gorse-server
+    image: zhenghaoz/gorse-in-one:latest
+    container_name: gorse
     ports:
+      # 8086 = gRPC (interne, pas besoin de l'exposer)
+      # 8088 = HTTP (dashboard + API REST)
       - "8088:8088"
     environment:
       # Cache : Redis
@@ -27,21 +28,8 @@ services:
       - postgres
     restart: unless-stopped
 
-  worker:
-    image: gorse/gorse-worker:latest
-    container_name: gorse-worker
-    environment:
-      GORSE_CACHE_STORE: redis://redis:6379
-      GORSE_DATA_STORE: postgres://gorse:gorse@postgres:5432/gorse?sslmode=disable
-      # Le worker entraîne les modèles de recommandation périodiquement
-      GORSE_JOBS: recommend
-    depends_on:
-      - redis
-      - postgres
-    restart: unless-stopped
-
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:latest
     container_name: gorse-redis
     restart: unless-stopped
 
