@@ -5,7 +5,8 @@ import { loadFeedPage, type FeedItem } from '@/lib/services/recipes';
 import { createClient } from '@/lib/supabase/client';
 import FeedCard from '@/components/feed/FeedCard';
 import FeedActions from '@/components/feed/FeedActions';
-import FilterBar from '@/components/feed/FilterBar';
+import FilterSheet from '@/components/feed/FilterSheet';
+import ShareSheet from '@/components/feed/ShareSheet';
 import AddToPlanModal from '@/components/planning/AddToPlanModal';
 import { useMealPlan } from '@/hooks/useMealPlan';
 
@@ -26,6 +27,10 @@ export default function FeedScroll({ userId }: { userId: string | null }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filters, setFilters] = useState<{ cuisine?: string }>({});
   const [planTarget, setPlanTarget] = useState<FeedItem | null>(null);
+  const [shareTarget, setShareTarget] = useState<{
+    recipeId: string;
+    title: string;
+  } | null>(null);
 
   const seenIdsRef = useRef<Set<string>>(new Set());
   const loadingRef = useRef(false);
@@ -59,7 +64,19 @@ export default function FeedScroll({ userId }: { userId: string | null }) {
     }
   }, [userId, state.hasMore, filters]);
 
-  useEffect(() => { loadMore(); }, []);
+  useEffect(() => {
+    loadMore();
+  }, []);
+
+  useEffect(() => {
+    // Écouter l'event custom de partage depuis FeedActions
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setShareTarget({ recipeId: detail.recipeId, title: detail.title });
+    };
+    window.addEventListener('posplate:share', handler);
+    return () => window.removeEventListener('posplate:share', handler);
+  }, []);
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
@@ -96,16 +113,6 @@ export default function FeedScroll({ userId }: { userId: string | null }) {
     });
   };
 
-  const handleSave = async (recipeId: string) => {
-    if (!supabase) return;
-    await supabase.from('saved_recipes').insert({ user_id: userId, recipe_id: recipeId });
-    fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feedbackType: 'save', recipeId }),
-    });
-  };
-
   const handleMakeItMine = async (
     recipeId: string,
     date: string,
@@ -115,21 +122,26 @@ export default function FeedScroll({ userId }: { userId: string | null }) {
   };
 
   return (
-    <div className="relative">
-      <FilterBar
-        current={filters.cuisine}
-        onChange={(cuisine) => {
-          setFilters({ cuisine });
-          setState({ items: [], loading: false, error: null, hasMore: true });
-          seenIdsRef.current.clear();
-          loadMore();
-        }}
-      />
+    <div className="relative h-[calc(100dvh-120px)]">
+      {/* Top-right filter button (fixed within scroll) */}
+      <div className="pointer-events-none absolute top-4 right-3 z-30">
+        <div className="pointer-events-auto">
+          <FilterSheet
+            current={filters.cuisine}
+            onChange={(cuisine) => {
+              setFilters({ cuisine });
+              setState({ items: [], loading: false, error: null, hasMore: true });
+              seenIdsRef.current.clear();
+              loadMore();
+            }}
+          />
+        </div>
+      </div>
 
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-[calc(100dvh-120px)] overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
+        className="h-full overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
       >
         {state.items.length === 0 && state.loading && (
           <div className="flex h-full items-center justify-center">
@@ -145,14 +157,11 @@ export default function FeedScroll({ userId }: { userId: string | null }) {
 
         {state.items.map((item, i) => (
           <div key={item.id} className="relative h-full snap-start">
-            <FeedCard
-              item={item}
-              isActive={i === currentIndex}
-            />
+            <FeedCard item={item} isActive={i === currentIndex} />
             <FeedActions
-              mines={item.mines}
+              item={item}
+              isMined={false}
               onMine={() => handleMine(item.id)}
-              onSave={() => handleSave(item.id)}
               onMakeItMine={() => setPlanTarget(item)}
             />
           </div>
@@ -165,12 +174,24 @@ export default function FeedScroll({ userId }: { userId: string | null }) {
         )}
       </div>
 
+      {/* AddToPlanModal — Make it mine */}
       {planTarget && (
         <AddToPlanModal
           open={!!planTarget}
           onClose={() => setPlanTarget(null)}
           recipeId={planTarget.id}
           onConfirm={handleMakeItMine}
+        />
+      )}
+
+      {/* ShareSheet — Partager */}
+      {shareTarget && (
+        <ShareSheet
+          open={!!shareTarget}
+          onClose={() => setShareTarget(null)}
+          recipeId={shareTarget.recipeId}
+          recipeTitle={shareTarget.title}
+          userId={userId}
         />
       )}
     </div>

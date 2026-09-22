@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Button from '@/components/ui/Button';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,7 @@ export default function LoginPage() {
     });
 
     if (err) setError(err.message);
+    else router.push('/');
     setLoading(false);
   };
 
@@ -33,7 +36,7 @@ export default function LoginPage() {
 
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: { redirectTo: `${location.origin}/callback` },
     });
 
     if (err) setError(err.message);
