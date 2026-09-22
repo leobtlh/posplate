@@ -34,6 +34,14 @@ L'application est construite sur une architecture moderne, pensée pour le mobil
 
 * **Styling :** Tailwind CSS (Interface épurée, grandes images, animations fluides)
 
+* **Couleurs (Charte Graphique) :**
+  | Rôle | Hex |
+  |---|---|
+  | Fond / Surfaces | `#FFFFFF` |
+  | Vert clair (accent principal) | `#CBF863` |
+  | Vert moyen (CTA, interactions) | `#8FC809` |
+  | Vert pâle (fond secondaire) | `#DAFA8F` |
+
 * **Backend & Base de données :** Supabase (PostgreSQL, Authentification, Storage pour les images/vidéos)
 
 * **Paiements :** Stripe (Gestion de l'abonnement Premium en CHF)
